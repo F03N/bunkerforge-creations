@@ -28,18 +28,40 @@ serve(async (req) => {
 
     if (sceneErr || !scene) throw new Error("Scene not found");
 
-    // Get project data for context
+    // Get project data for continuity context
     const { data: project } = await supabase
       .from("projects")
       .select("*")
       .eq("id", projectId)
       .single();
 
+    if (!project) throw new Error("Project not found");
+
     // Update status to generating
     await supabase.from("scenes").update({ status: "generating" }).eq("id", sceneId);
 
-    // Get previous scene image for reference
-    let referenceContext = "";
+    // Build continuity block
+    const continuityBlock = [
+      `CONTINUITY RULES (MANDATORY):`,
+      `- BUNKER IDENTITY: A ${project.selected_idea} bunker. Same exact bunker in every scene.`,
+      `- ENVIRONMENT: Same surrounding environment, geography, terrain.`,
+      `- CAMERA: Same camera angle, focal length, perspective, composition.`,
+      `- ARCHITECTURE: Architectural features stay in same position. Changes are additive only.`,
+      `- DESIGN TARGET: Final style "${project.final_style}", mood "${project.visual_mood}", intensity "${project.construction_intensity}".`,
+    ].join('\n');
+
+    // Build the image prompt with continuity
+    const promptParts = [
+      scene.image_prompt,
+      '',
+      continuityBlock,
+      '',
+      `Scene ${scene.scene_number} of 9 — "${scene.scene_title}".`,
+      `Aspect ratio: 9:16 (VERTICAL portrait for Shorts/Reels/TikTok). Photorealistic, cinematic, high detail.`,
+    ];
+
+    // Get previous scene for visual continuity
+    let prevSceneImageUrl: string | null = null;
     if (scene.scene_number > 1) {
       const { data: prevScene } = await supabase
         .from("scenes")
@@ -47,37 +69,34 @@ serve(async (req) => {
         .eq("project_id", projectId)
         .eq("scene_number", scene.scene_number - 1)
         .single();
-      
-      if (prevScene?.output_image_url) {
-        referenceContext = `This is scene ${scene.scene_number} continuing from "${prevScene.scene_title}". Maintain visual continuity with the previous scene.`;
+
+      if (!prevScene?.output_image_url) {
+        console.warn(`Previous scene ${scene.scene_number - 1} has no output image`);
+      } else {
+        prevSceneImageUrl = prevScene.output_image_url;
+        promptParts.unshift(
+          `CRITICAL: This scene continues directly from Scene ${scene.scene_number - 1} ("${prevScene.scene_title}"). Use the provided reference image as the visual starting point. Show ONLY the realistic incremental progress from the previous state. Do NOT change the bunker, environment, or camera angle.`
+        );
       }
     }
 
-    // Generate image using Lovable AI with image generation model
-    const imagePrompt = `${scene.image_prompt}\n\n${referenceContext}\n\nProject context: ${project?.selected_idea}, style: ${project?.final_style}, mood: ${project?.visual_mood}. Create a photorealistic, cinematic 16:9 image.`;
+    const fullPrompt = promptParts.join('\n');
 
-    const messages: any[] = [
-      { role: "user", content: imagePrompt }
-    ];
+    console.log(`Generating scene ${scene.scene_number} "${scene.scene_title}"`);
+    console.log(`Has previous scene reference: ${!!prevSceneImageUrl}`);
 
-    // If there's a previous scene image, include it for visual continuity
-    if (scene.scene_number > 1) {
-      const { data: prevScene } = await supabase
-        .from("scenes")
-        .select("output_image_url")
-        .eq("project_id", projectId)
-        .eq("scene_number", scene.scene_number - 1)
-        .single();
-
-      if (prevScene?.output_image_url) {
-        messages[0] = {
-          role: "user",
-          content: [
-            { type: "text", text: `Based on the reference image from the previous scene, generate the next scene. ${imagePrompt}` },
-            { type: "image_url", image_url: { url: prevScene.output_image_url } }
-          ]
-        };
-      }
+    // Build messages
+    const messages: any[] = [];
+    if (prevSceneImageUrl) {
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: fullPrompt },
+          { type: "image_url", image_url: { url: prevSceneImageUrl } },
+        ],
+      });
+    } else {
+      messages.push({ role: "user", content: fullPrompt });
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -154,7 +173,7 @@ serve(async (req) => {
 
     if (updateErr) throw updateErr;
 
-    // Also update the next scene's reference image
+    // Update next scene's reference image
     await supabase
       .from("scenes")
       .update({ reference_image_url: publicUrl.publicUrl })
@@ -162,17 +181,21 @@ serve(async (req) => {
       .eq("scene_number", scene.scene_number + 1);
 
     // Update transition start/end images
-    await supabase
-      .from("transitions")
-      .update({ end_image_url: publicUrl.publicUrl })
-      .eq("project_id", projectId)
-      .eq("from_scene", scene.scene_number);
-
+    // This scene is the START image for transition FROM this scene
     await supabase
       .from("transitions")
       .update({ start_image_url: publicUrl.publicUrl })
       .eq("project_id", projectId)
+      .eq("from_scene", scene.scene_number);
+
+    // This scene is the END image for transition TO this scene
+    await supabase
+      .from("transitions")
+      .update({ end_image_url: publicUrl.publicUrl })
+      .eq("project_id", projectId)
       .eq("to_scene", scene.scene_number);
+
+    console.log(`Scene ${scene.scene_number} completed: ${publicUrl.publicUrl}`);
 
     return new Response(JSON.stringify({ scene: updatedScene }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

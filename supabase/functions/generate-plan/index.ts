@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SCENE_SEQUENCE = [
+  { number: 1, title: "Before", description: "The bunker in its original abandoned/ruined state" },
+  { number: 2, title: "Arrival", description: "Approaching the bunker for the first time" },
+  { number: 3, title: "Exterior Work Start", description: "Beginning exterior restoration and cleanup" },
+  { number: 4, title: "Exterior Near Completion", description: "Exterior restoration nearly finished" },
+  { number: 5, title: "Entering Underground", description: "First descent into the interior spaces" },
+  { number: 6, title: "Interior Work In Progress", description: "Active interior construction and renovation" },
+  { number: 7, title: "Interior Finalization", description: "Finishing structural interior work" },
+  { number: 8, title: "Interior Design Transformation", description: "Installing furnishings, lighting, and design elements" },
+  { number: 9, title: "Final Reveal", description: "The completed, fully restored bunker" },
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -19,8 +31,20 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Generate project plan using AI
-    const prompt = `You are a cinematic bunker transformation planner for short-form video content (TikTok, Reels, YouTube Shorts).
+    const continuityBlock = [
+      `CONTINUITY RULES (MANDATORY):`,
+      `- BUNKER IDENTITY: A ${selectedIdea} bunker. Same exact bunker throughout all scenes.`,
+      `- ENVIRONMENT: Surrounding environment must remain consistent across all scenes.`,
+      `- CAMERA: Maintain consistent camera angle and framing. Same focal length and perspective.`,
+      `- ARCHITECTURE: Key architectural features must remain in same position and proportion.`,
+      `- DESIGN TARGET: Final interior uses "${finalStyle}" style, "${visualMood}" mood, "${constructionIntensity}" intensity.`,
+    ].join('\n');
+
+    const sceneListDescription = SCENE_SEQUENCE.map(s => 
+      `Scene ${s.number} - ${s.title}: ${s.description}`
+    ).join('\n');
+
+    const prompt = `You are a cinematic bunker transformation planner for vertical short-form video content (TikTok, Reels, YouTube Shorts).
 
 Create a detailed 9-scene transformation plan for:
 - Bunker Idea: ${selectedIdea}
@@ -30,18 +54,22 @@ Create a detailed 9-scene transformation plan for:
 - Project Name: ${projectName}
 ${notes ? `- Additional Notes: ${notes}` : ''}
 
-The 9 scenes must follow this sequence:
-Scene 1 - Before (abandoned/ruined state)
-Scene 2 - Arrival (approaching the bunker)
-Scene 3 - Discovery (first look inside)
-Scene 4 - Assessment (evaluating damage)
-Scene 5 - Clearing (removing debris)
-Scene 6 - Foundation (structural repairs)
-Scene 7 - Construction (rebuilding)
-Scene 8 - Detailing (finishing touches)
-Scene 9 - Reveal (final transformation)
+${continuityBlock}
 
-For each scene provide a detailed text-to-image prompt (photorealistic, cinematic, 16:9), an animation prompt (camera movement, particle effects, 4 seconds), and a sound prompt (environmental audio, ambient).`;
+The 9 scenes MUST follow this EXACT sequence:
+${sceneListDescription}
+
+CRITICAL REQUIREMENTS:
+- ALL prompts must target VERTICAL 9:16 aspect ratio (portrait orientation for Shorts/Reels/TikTok)
+- Each scene must show realistic, gradual, incremental progress from the previous scene
+- The same bunker, same environment, same camera angle must be maintained
+- Construction changes are additive — they build on the previous scene
+- No scene should contradict what was shown in a previous scene
+
+For each scene provide:
+1. A detailed text-to-image prompt (photorealistic, cinematic, VERTICAL 9:16 portrait format)
+2. An animation prompt (camera movement for 5-second video transition, realistic construction time-lapse motion)
+3. A sound prompt (environmental audio, ambient sounds matching the construction phase)`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -56,11 +84,22 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
           type: "function",
           function: {
             name: "create_project_plan",
-            description: "Create a structured 9-scene transformation plan",
+            description: "Create a structured 9-scene vertical transformation plan",
             parameters: {
               type: "object",
               properties: {
-                summary: { type: "string", description: "2-3 sentence project summary" },
+                summary: { type: "string", description: "2-3 sentence project summary mentioning vertical 9:16 format" },
+                continuity_profile: {
+                  type: "object",
+                  properties: {
+                    bunker_identity: { type: "string" },
+                    environment_summary: { type: "string" },
+                    camera_framing_rules: { type: "string" },
+                    architectural_anchors: { type: "string" },
+                    final_design_target: { type: "string" },
+                  },
+                  required: ["bunker_identity", "environment_summary", "camera_framing_rules", "architectural_anchors", "final_design_target"],
+                },
                 scenes: {
                   type: "array",
                   items: {
@@ -68,15 +107,15 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
                     properties: {
                       scene_number: { type: "integer" },
                       scene_title: { type: "string" },
-                      image_prompt: { type: "string", description: "Detailed text-to-image prompt, photorealistic cinematic 16:9" },
-                      animation_prompt: { type: "string", description: "Camera movement and effects for 4-second animation" },
+                      image_prompt: { type: "string", description: "Detailed text-to-image prompt, photorealistic cinematic VERTICAL 9:16 portrait format" },
+                      animation_prompt: { type: "string", description: "Camera movement and realistic construction motion for 5-second transition video" },
                       sound_prompt: { type: "string", description: "Environmental and ambient audio description" },
                     },
                     required: ["scene_number", "scene_title", "image_prompt", "animation_prompt", "sound_prompt"],
                   },
                 },
               },
-              required: ["summary", "scenes"],
+              required: ["summary", "scenes", "continuity_profile"],
             },
           },
         }],
@@ -93,7 +132,7 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -105,6 +144,13 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
     if (!toolCall) throw new Error("No tool call in AI response");
 
     const plan = JSON.parse(toolCall.function.arguments);
+
+    // Ensure scene titles match our sequence
+    const scenes = plan.scenes.map((s: any, i: number) => ({
+      ...s,
+      scene_number: i + 1,
+      scene_title: SCENE_SEQUENCE[i]?.title || s.scene_title,
+    }));
 
     // Create project in DB
     const { data: project, error: projErr } = await supabase
@@ -124,7 +170,7 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
     if (projErr) throw projErr;
 
     // Insert scenes
-    const scenesData = plan.scenes.map((s: any) => ({
+    const scenesData = scenes.map((s: any) => ({
       project_id: project.id,
       scene_number: s.scene_number,
       scene_title: s.scene_title,
@@ -134,7 +180,7 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
       status: "pending",
     }));
 
-    const { data: scenes, error: scenesErr } = await supabase
+    const { data: dbScenes, error: scenesErr } = await supabase
       .from("scenes")
       .insert(scenesData)
       .select();
@@ -147,18 +193,20 @@ For each scene provide a detailed text-to-image prompt (photorealistic, cinemati
       transition_number: i + 1,
       from_scene: i + 1,
       to_scene: i + 2,
-      animation_prompt: plan.scenes[i]?.animation_prompt || "",
+      animation_prompt: scenes[i]?.animation_prompt || "",
       status: "pending",
     }));
 
-    const { data: transitions, error: transErr } = await supabase
+    const { data: dbTransitions, error: transErr } = await supabase
       .from("transitions")
       .insert(transitionsData)
       .select();
 
     if (transErr) throw transErr;
 
-    return new Response(JSON.stringify({ project, scenes, transitions }), {
+    console.log(`Plan generated: ${project.id}, ${dbScenes.length} scenes, ${dbTransitions.length} transitions`);
+
+    return new Response(JSON.stringify({ project, scenes: dbScenes, transitions: dbTransitions }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
