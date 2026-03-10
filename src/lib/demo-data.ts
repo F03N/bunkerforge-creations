@@ -27,9 +27,10 @@ export const CONSTRUCTION_INTENSITIES = [
   "light restoration", "medium rebuild", "heavy reconstruction",
 ];
 
-const SCENE_TITLES = [
-  "Before", "Arrival", "Discovery", "Assessment",
-  "Clearing", "Foundation", "Construction", "Detailing", "Reveal",
+export const SCENE_TITLES = [
+  "Before", "Arrival", "Exterior Work Start", "Exterior Near Completion",
+  "Entering Underground", "Interior Work In Progress", "Interior Finalization",
+  "Interior Design Transformation", "Final Reveal",
 ];
 
 export const DEMO_PROJECT: Project = {
@@ -40,7 +41,7 @@ export const DEMO_PROJECT: Project = {
   visualMood: "cinematic dramatic",
   constructionIntensity: "heavy reconstruction",
   notes: "Focus on dramatic lighting and ice textures throughout the transformation.",
-  projectSummary: "A cinematic 9-scene transformation of a frozen mountain bunker from its abandoned, ice-encrusted state to a fully restored survival shelter. The sequence emphasizes the brutal contrast between the harsh alpine environment and the warm, functional interior that emerges through heavy reconstruction.",
+  projectSummary: "A cinematic 9-scene vertical (9:16) transformation of a frozen mountain bunker from its abandoned, ice-encrusted state to a fully restored survival shelter. Optimized for Shorts, Reels, and TikTok.",
   createdAt: new Date().toISOString(),
 };
 
@@ -49,22 +50,22 @@ export const DEMO_SCENES: Scene[] = SCENE_TITLES.map((title, i) => ({
   projectId: "demo-001",
   sceneNumber: i + 1,
   sceneTitle: title,
-  imagePrompt: `Cinematic wide shot of a frozen mountain bunker, scene ${i + 1} — ${title.toLowerCase()}. ${
+  imagePrompt: `Cinematic vertical portrait shot of a frozen mountain bunker, scene ${i + 1} — ${title.toLowerCase()}. ${
     i === 0 ? "Abandoned bunker entrance buried in snow and ice, rusted blast door barely visible, howling wind, blue-grey color grading, dramatic storm clouds." :
-    i === 1 ? "A lone figure approaches through deep snow, headlamp cutting through blizzard, the bunker entrance partially excavated, footprints trailing behind." :
-    i === 2 ? "Interior first look — collapsed ceiling beams, ice formations on walls, frozen debris scattered across the floor, single shaft of cold light from above." :
-    i === 3 ? "Wide assessment shot showing structural damage — cracked concrete walls, frozen pipes, ice-covered electrical panels, breath visible in the cold air." :
-    i === 4 ? "Active clearing — debris being removed, ice being chipped away, portable lights set up, steam rising from heated tools against frozen surfaces." :
-    i === 5 ? "Foundation work — new concrete being poured over repaired floors, steel reinforcement beams installed, waterproofing membranes visible, industrial work lights." :
-    i === 6 ? "Mid-construction — new wall panels being installed, electrical conduits running along ceiling, insulation visible between studs, warm work lighting mixing with cold exterior light." :
-    i === 7 ? "Detail work — custom shelving being installed, tactical equipment being mounted, LED strip lighting being tested, smooth concrete surfaces with military-grade finishes." :
-    "Final reveal — fully restored survival bunker interior, warm amber lighting, organized supply stations, monitoring equipment active, dramatic contrast with frozen exterior visible through reinforced window."
-  } Photorealistic, 16:9 cinematic aspect ratio, high detail.`,
-  animationPrompt: `Slow cinematic camera ${i === 0 ? 'push-in toward the frozen bunker entrance' : i === 8 ? 'pull-back revealing the complete transformation' : `pan across the ${title.toLowerCase()} phase`}, subtle particle effects of ${i < 4 ? 'snow and ice crystals' : 'dust and construction debris'}, atmospheric lighting shift, 4 second duration.`,
-  soundPrompt: `${i < 3 ? 'Howling arctic wind, creaking ice, distant rumbling' : i < 6 ? 'Heavy machinery, concrete pouring, metallic clanging' : 'Power tools, electronic hums, mechanical clicks'}, cinematic bass undertone, ambient tension.`,
+    i === 1 ? "A lone figure approaches through deep snow, headlamp cutting through blizzard, the bunker entrance partially visible ahead." :
+    i === 2 ? "Exterior cleanup begins — scaffolding erected around entrance, snow cleared from blast door, workers removing debris, portable lights set up." :
+    i === 3 ? "Exterior nearly restored — reinforced entrance structure, new blast door installed, cleared perimeter, fresh concrete visible, work lights illuminating." :
+    i === 4 ? "First descent into the bunker interior — flashlight beams cutting through darkness, ice formations on walls, frozen debris on stairs." :
+    i === 5 ? "Active interior construction — new wall panels being fitted, electrical conduits being run, portable heaters melting ice, warm work lights contrasting cold walls." :
+    i === 6 ? "Interior structural work complete — clean walls, sealed floors, HVAC ducts installed, overhead lighting working, utilities connected." :
+    i === 7 ? "Design transformation — custom furniture being placed, LED ambient lighting tested, tactical equipment mounted, finished surfaces with military-grade materials." :
+    "Final reveal — fully restored survival bunker, warm amber lighting, organized supply stations, monitoring equipment active, dramatic contrast with frozen exterior."
+  } Photorealistic, vertical 9:16 portrait aspect ratio, high detail.`,
+  animationPrompt: `Slow cinematic camera ${i === 0 ? 'tilt down toward the frozen bunker entrance' : i === 8 ? 'pull-back revealing the complete transformation' : `pan revealing the ${title.toLowerCase()} phase`}, subtle particle effects, atmospheric lighting, 5 second duration.`,
+  soundPrompt: `${i < 3 ? 'Howling arctic wind, creaking ice, distant rumbling' : i < 5 ? 'Power tools, concrete work, metallic clanging, wind' : 'Interior construction, electronic hums, mechanical clicks'}, cinematic bass undertone.`,
   referenceImageUrl: null,
   outputImageUrl: null,
-  status: i === 0 ? 'completed' : i === 1 ? 'completed' : i === 2 ? 'completed' : 'pending',
+  status: 'pending',
 }));
 
 export const DEMO_TRANSITIONS: Transition[] = Array.from({ length: 8 }, (_, i) => ({
@@ -73,11 +74,7 @@ export const DEMO_TRANSITIONS: Transition[] = Array.from({ length: 8 }, (_, i) =
   transitionNumber: i + 1,
   fromScene: i + 1,
   toScene: i + 2,
-  animationPrompt: `Cinematic morph transition from Scene ${i + 1} (${SCENE_TITLES[i]}) to Scene ${i + 2} (${SCENE_TITLES[i + 1]}). ${
-    i < 3 ? 'Ice crystals dissolve and reform as the environment shifts' :
-    i < 6 ? 'Construction dust swirls and settles revealing the next phase' :
-    'Lights flicker and stabilize as the space transforms'
-  }. Smooth 2-second crossfade with parallax depth effect.`,
+  animationPrompt: `Realistic construction time-lapse from Scene ${i + 1} (${SCENE_TITLES[i]}) to Scene ${i + 2} (${SCENE_TITLES[i + 1]}). Smooth, physically believable progression maintaining same camera angle and bunker identity.`,
   startImageUrl: null,
   endImageUrl: null,
   outputVideoUrl: null,

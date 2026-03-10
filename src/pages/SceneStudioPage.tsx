@@ -29,7 +29,7 @@ export default function SceneStudioPage() {
     if (sceneNumber > 1) {
       const prev = scenes.find((s) => s.scene_number === sceneNumber - 1);
       if (prev?.status !== 'completed') {
-        toast.error('Previous scene must be completed first');
+        toast.error(`Scene ${sceneNumber - 1} must be completed first for visual continuity`);
         return;
       }
     }
@@ -56,11 +56,11 @@ export default function SceneStudioPage() {
         updateScene(nextScene.id, { reference_image_url: data.scene.output_image_url });
       }
 
-      toast.success(`Scene ${sceneNumber} generated`);
+      toast.success(`Scene ${sceneNumber} image generated (9:16 vertical)`);
     } catch (err: any) {
       console.error('Scene generation error:', err);
       updateScene(sceneId, { status: 'failed' });
-      toast.error(err.message || 'Failed to generate scene');
+      toast.error(err.message || 'Failed to generate scene image');
     } finally {
       setGeneratingIds((prev) => {
         const next = new Set(prev);
@@ -81,8 +81,11 @@ export default function SceneStudioPage() {
       <h1 className="font-display text-2xl font-bold tracking-tight text-foreground mb-2">
         SCENE STUDIO
       </h1>
-      <p className="text-sm text-muted-foreground mb-8 font-body">
-        Generate scene images sequentially. Each scene depends on the previous.
+      <p className="text-sm text-muted-foreground mb-2 font-body">
+        Generate scene images sequentially. Each scene uses the previous scene as a visual continuity reference.
+      </p>
+      <p className="text-[10px] font-display tracking-wider text-spark mb-8">
+        FORMAT: VERTICAL 9:16 — SHORTS / REELS / TIKTOK
       </p>
 
       <div className="space-y-0">
@@ -104,30 +107,38 @@ export default function SceneStudioPage() {
 
                 <div className="bg-background border border-border rounded-sm p-3 mb-4">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-display tracking-widest text-muted-foreground">TEXT-TO-IMAGE PROMPT</span>
+                    <span className="text-[10px] font-display tracking-widest text-muted-foreground">TEXT-TO-IMAGE PROMPT (9:16)</span>
                     <CopyBtn text={scene.image_prompt} />
                   </div>
                   <p className="text-xs text-muted-foreground font-body leading-relaxed">{scene.image_prompt}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="aspect-video bg-background border border-border rounded-sm flex items-center justify-center overflow-hidden">
-                    {prevScene?.output_image_url ? (
-                      <img src={prevScene.output_image_url} alt="Reference" className="w-full h-full object-cover rounded-sm" />
-                    ) : (
-                      <span className="text-[10px] font-display tracking-wider text-muted-foreground">
-                        {scene.scene_number === 1 ? 'NO REFERENCE' : 'AWAITING PREV SCENE'}
-                      </span>
-                    )}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-display tracking-widest text-muted-foreground">
+                      {scene.scene_number === 1 ? 'NO REFERENCE NEEDED' : 'CONTINUITY REFERENCE'}
+                    </span>
+                    <div className="aspect-[9/16] bg-background border border-border rounded-sm flex items-center justify-center overflow-hidden">
+                      {prevScene?.output_image_url ? (
+                        <img src={prevScene.output_image_url} alt="Reference" className="w-full h-full object-cover rounded-sm" />
+                      ) : (
+                        <span className="text-[10px] font-display tracking-wider text-muted-foreground">
+                          {scene.scene_number === 1 ? '—' : 'AWAITING PREV SCENE'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="aspect-video bg-background border border-border rounded-sm flex items-center justify-center overflow-hidden">
-                    {scene.output_image_url ? (
-                      <img src={scene.output_image_url} alt={`Scene ${scene.scene_number}`} className="w-full h-full object-cover rounded-sm" />
-                    ) : (
-                      <span className="text-[10px] font-display tracking-wider text-muted-foreground">
-                        {isGenerating ? '[ RENDERING ]' : 'NOT GENERATED'}
-                      </span>
-                    )}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-display tracking-widest text-muted-foreground">OUTPUT</span>
+                    <div className="aspect-[9/16] bg-background border border-border rounded-sm flex items-center justify-center overflow-hidden">
+                      {scene.output_image_url ? (
+                        <img src={scene.output_image_url} alt={`Scene ${scene.scene_number}`} className="w-full h-full object-cover rounded-sm" />
+                      ) : (
+                        <span className="text-[10px] font-display tracking-wider text-muted-foreground">
+                          {isGenerating ? '[ RENDERING ]' : 'NOT GENERATED'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -146,12 +157,12 @@ export default function SceneStudioPage() {
                     >
                       {scene.status === 'completed' ? (
                         <span className="flex items-center gap-1"><RefreshCw className="w-3 h-3" /> REGENERATE</span>
-                      ) : '[ GENERATE ]'}
+                      ) : '[ GENERATE IMAGE ]'}
                     </button>
                   )}
                   {isGenerating && (
                     <div className="px-4 py-2 border border-spark/30 rounded-sm font-display text-xs tracking-wider text-spark animate-pulse-amber">
-                      [ RENDERING :: ... ]
+                      [ RENDERING IMAGE :: ... ]
                     </div>
                   )}
                 </div>
@@ -167,7 +178,7 @@ export default function SceneStudioPage() {
 
       <div className="mt-8">
         <button onClick={() => setStep('transitions')} className="px-8 py-3 bg-spark text-primary-foreground font-display text-sm tracking-wider rounded-sm hover:brightness-110 transition-all">
-          [ PROCEED TO TRANSITIONS ]
+          [ PROCEED TO TRANSITION VIDEOS ]
         </button>
       </div>
     </div>
@@ -178,7 +189,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { text: string; cls: string }> = {
     pending: { text: 'PENDING', cls: 'text-muted-foreground border-border' },
     generating: { text: 'RENDERING', cls: 'text-spark border-spark/30 animate-pulse-amber' },
-    completed: { text: 'ASSET SECURED', cls: 'text-success border-success/30' },
+    completed: { text: 'IMAGE READY', cls: 'text-success border-success/30' },
     failed: { text: 'FAILED', cls: 'text-destructive border-destructive/30' },
   };
   const c = config[status] || config.pending;
